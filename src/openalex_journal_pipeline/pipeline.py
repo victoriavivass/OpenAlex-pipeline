@@ -24,15 +24,15 @@ def run_pipeline(
     input_excel = Path(input_excel)
     output_excel = Path(output_excel)
 
-    print(f"📥 Reading journal list: {input_excel}")
+    print(f" Reading journal list: {input_excel}")
     df_input = pd.read_excel(input_excel, sheet_name=sheet_name)
 
     df_journals = build_journal_table(df_input)
-    print(f"📚 Journals found in OpenAlex: {df_journals['found'].sum()}")
+    print(f" Journals found in OpenAlex: {df_journals['found'].sum()}")
 
     df_results = search_all_journals(df_journals, keywords, from_year=from_year)
 
     output_excel.parent.mkdir(parents=True, exist_ok=True)
     df_results.to_excel(output_excel, index=False)
 
-    print(f"✅ Results saved to: {output_excel}")
+    print(f" Results saved to: {output_excel}")

@@ -75,7 +75,7 @@ def search_all_journals(
         jname = row["input_name"]
         jid = row["openalex_id"]
 
-        print(f"\n🔎 Journal: {jname} ({jid})")
+        print(f"\n Journal: {jname} ({jid})")
 
         for kw in keywords:
             print(f"   → Searching for keyword: {kw}")
