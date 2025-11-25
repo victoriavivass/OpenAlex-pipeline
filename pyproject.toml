@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openalex-journal-pipeline"
+version = "0.1.0"
+description = "A pipeline to retrieve journal metadata and keyword-based article results from OpenAlex."
+authors = [{ name = "Victoria Vivas" }]
+requires-python = ">=3.10"
+dependencies = [
+    "pandas",
+    "openpyxl",
+    "pyalex",
+]
+
+[project.scripts]
+openalex-journal-pipeline = "openalex_journal_pipeline.cli:main"
