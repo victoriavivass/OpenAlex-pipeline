@@ -1,0 +1,13 @@
+# environments
+venv/
+.venv/
+
+# python caches
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# generated outputs / large files
+outputs/
+*.pkl
+*.parquet

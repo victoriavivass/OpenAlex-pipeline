@@ -1,0 +1,2 @@
+[console_scripts]
+openalex-journal-pipeline = openalex_journal_pipeline.cli:main

@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: openalex-journal-pipeline
+Version: 0.1.0
+Summary: A pipeline to retrieve journal metadata and keyword-based article results from OpenAlex.
+Author: Victoria Vivas
+Requires-Python: >=3.10
+Requires-Dist: pandas
+Requires-Dist: openpyxl
+Requires-Dist: pyalex
