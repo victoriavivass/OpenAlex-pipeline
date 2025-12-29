@@ -198,7 +198,7 @@ def main() -> None:
     df["n_articles_total"] = pd.to_numeric(df["n_articles_total"], errors="coerce")
     df["n_articles_with_keyword"] = pd.to_numeric(df["n_articles_with_keyword"], errors="coerce")
 
-    # ✅ APPLY BERT RULE HERE (affects both plots)
+    # APPLY BERT RULE HERE (affects both plots)
     df = enforce_bert_min_year(df)
 
     # -------------------------
