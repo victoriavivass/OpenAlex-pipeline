@@ -13,7 +13,6 @@ Usage examples:
 import sys
 from pathlib import Path
 import argparse
-
 import pandas as pd
 
 # Make the /src directory importable
