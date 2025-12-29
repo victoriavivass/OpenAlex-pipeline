@@ -12,7 +12,7 @@ This project is built on top of the **pyalex** library:
 
 <p align="center">
   <a href="https://github.com/J535D165/pyalex">
-    <img src="https://raw.githubusercontent.com/J535D165/pyalex/main/docs/_static/pyalex_logo.png" alt="pyalex logo" width="300"/>
+    <img src= "https://raw.githubusercontent.com/J535D165/pyalex/main/docs/_static/pyalex_logo.png" alt="pyalex logo" width="300"/>
   </a>
 </p>
 
