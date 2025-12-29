@@ -50,7 +50,7 @@ The pipeline:
 - Computes yearly counts and proportions of articles mentioning these concepts.
 - Produces both static and interactive visualisations to explore trends over time.
 
-The final outputs allow us to assess whether—and how—the presence of AI- and LLM-related methods in top social science journals has increased over the past decade.
+The final outputs allow us to assess whether (and how) the presence of AI- and LLM-related methods in top social science journals has increased over the past decade.
 
 ---
 
@@ -153,5 +153,6 @@ pip install -r requirements.txt
 
 Victoria Vivas  
 IPP Computational Social Sciences
+
 
 
