@@ -1,53 +1,67 @@
 """
 04_visualise.py
 
-Create small-multiples (static) plots of keyword prevalence over time.
+Visualisation of keyword prevalence over time.
 
-Input:
-- outputs/keyword_prevalence_<sheet>.csv (from 03_analyse.py)
-  Required columns:
-    - journal_input
-    - keyword
-    - year
-    - n_keyword_hits
-    - n_articles_total
+Modes:
+- MODE = "single"   -> one discipline (one df_all_jyk_<sheet>.csv)
+- MODE = "combined" -> Sociology + Political_Science together
 
-Output:
-- outputs/figures/keywords_trends_color_<sheet>.png
+Outputs:
+- Static PNG (small multiples)
+- Interactive HTML (all keywords together)
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
+import plotly.express as px
 
 
-def plot_small_multiples_percentage(
-    df_all_jyk: pd.DataFrame,
-    year_min: int = 2010,
-    year_max: int | None = None,
-    bert_family: set[str] | None = None,
-    bert_min_year: int = 2018,
-    drop_all_zero: bool = True,
-    order: list[str] | None = None,
-    title: str | None = None,
-    bw: bool = False,
-    save_path: str | None = None,
-    n_cols: int = 3,
-    fill_alpha: float = 0.22,
-):
-    df = df_all_jyk.copy()
+# ============================================================
+# CONFIG
+# ============================================================
+MODE = "combined"   # "single" or "combined"
 
-    # 1) Enforce temporal validity for BERT-family keywords (set to 0 before bert_min_year)
-    if bert_family:
-        mask = (df["keyword"].isin(bert_family)) & (df["year"] < bert_min_year)
-        df.loc[mask, ["n_articles_with_keyword", "percentage"]] = 0
+SHEETS = ["Sociology", "Political_Science"]  # used if MODE == "combined"
+SINGLE_SHEET = "Sociology"                  # used if MODE == "single"
 
-    # 2) Aggregate across journals to get yearly totals per keyword
+YEAR_MIN = 2010
+
+BERT_MIN_YEAR = 2018
+BERT_FAMILY = {"BERT", "RoBERTa", "ALBERT", "DistilBERT"}
+
+N_COLS = 3
+FILL_ALPHA = 0.22
+
+
+def enforce_bert_min_year(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Set BERT-family keyword counts to zero before BERT_MIN_YEAR.
+    This MUST run before aggregation so it affects both PNG and HTML outputs.
+    """
+    df = df.copy()
+
+    # Safety: make sure keyword is a clean string
+    df["keyword"] = df["keyword"].astype(str).str.strip()
+
+    # Ensure year is numeric so comparisons work
+    df["year"] = pd.to_numeric(df["year"], errors="coerce")
+
+    mask = (df["keyword"].isin(BERT_FAMILY)) & (df["year"] < BERT_MIN_YEAR)
+    df.loc[mask, "n_articles_with_keyword"] = 0
+
+    return df
+
+
+# ============================================================
+# STATIC SMALL MULTIPLES
+# ============================================================
+def plot_small_multiples_percentage(df: pd.DataFrame, save_path: Path) -> None:
     yearly = (
         df.groupby(["year", "keyword"], as_index=False)
           .agg(
@@ -56,170 +70,150 @@ def plot_small_multiples_percentage(
           )
     )
 
-    # 3) Restrict year range
-    if year_max is None:
-        year_max = int(yearly["year"].max()) if not yearly.empty else year_min
-    yearly = yearly[(yearly["year"] >= int(year_min)) & (yearly["year"] <= int(year_max))].copy()
-
-    # 4) Compute percentage safely (avoid division by zero)
     yearly["percentage"] = np.divide(
-        100.0 * yearly["n_articles_with_keyword"].astype(float),
-        yearly["n_articles_total"].astype(float),
-        out=np.zeros(len(yearly), dtype=float),
-        where=yearly["n_articles_total"].to_numpy() != 0,
+        100 * yearly["n_articles_with_keyword"],
+        yearly["n_articles_total"],
+        out=np.zeros(len(yearly)),
+        where=yearly["n_articles_total"] != 0,
     )
 
-    # 5) Build a continuous (year × keyword) grid and fill missing with 0
-    years = list(range(int(year_min), int(year_max) + 1))
-
-    if order is not None:
-        categories = [k for k in order if k in set(yearly["keyword"])]
-    else:
-        categories = sorted(yearly["keyword"].unique())
-
-    grid = pd.MultiIndex.from_product([years, categories], names=["year", "keyword"]).to_frame(index=False)
-    yearly = grid.merge(yearly[["year", "keyword", "percentage"]], on=["year", "keyword"], how="left")
-    yearly["percentage"] = yearly["percentage"].fillna(0.0)
-
-    # 6) Drop keywords that are 0 for all years (optional)
-    if drop_all_zero and not yearly.empty:
-        keep = yearly.groupby("keyword")["percentage"].max()
-        keep = keep[keep > 0].index.tolist()
-        yearly = yearly[yearly["keyword"].isin(keep)]
-        categories = [k for k in categories if k in keep]
-
-    # 7) Plot small multiples
-    n = len(categories)
-    if n == 0:
-        print("No keywords to plot after filtering.")
+    if yearly.empty:
+        print("No data available for plotting.")
         return
 
-    n_rows = (n + n_cols - 1) // n_cols
+    years = range(int(YEAR_MIN), int(yearly["year"].max()) + 1)
+    keywords = sorted(yearly["keyword"].unique())
 
-    palette = [
-        "#1b9e77", "#d95f02", "#7570b3", "#e7298a", "#66a61e",
-        "#e6ab02", "#a6761d", "#1f78b4", "#fb9a99", "#cab2d6",
-    ]
-    linestyles = ["-", "--", ":", "-."]
+    grid = (
+        pd.MultiIndex.from_product([years, keywords], names=["year", "keyword"])
+        .to_frame(index=False)
+        .merge(yearly[["year", "keyword", "percentage"]], how="left")
+        .fillna(0)
+    )
+
+    # drop keywords that are always zero
+    keep = grid.groupby("keyword")["percentage"].max()
+    keywords = keep[keep > 0].index.tolist()
+    grid = grid[grid["keyword"].isin(keywords)]
+
+    if not keywords:
+        print("All keywords are zero after filtering.")
+        return
+
+    n = len(keywords)
+    n_rows = (n + N_COLS - 1) // N_COLS
 
     fig, axes = plt.subplots(
-        n_rows, n_cols,
-        figsize=(4 * n_cols, 3 * n_rows),
-        sharex=False,
+        n_rows, N_COLS,
+        figsize=(4 * N_COLS, 3 * n_rows),
         sharey=True,
     )
     axes = np.array(axes).reshape(-1)
 
-    for i, (ax, cat) in enumerate(zip(axes, categories)):
-        data = yearly[yearly["keyword"] == cat].sort_values("year")
+    palette = plt.cm.tab10.colors
 
-        if bw:
-            ax.plot(
-                data["year"], data["percentage"],
-                color="black",
-                linestyle=linestyles[i % len(linestyles)],
-                linewidth=2,
-            )
-            ax.fill_between(
-                data["year"], data["percentage"],
-                0,
-                color="black",
-                alpha=fill_alpha,
-            )
-        else:
-            c = palette[i % len(palette)]
-            ax.plot(
-                data["year"], data["percentage"],
-                color=c,
-                linewidth=2,
-            )
-            ax.fill_between(
-                data["year"], data["percentage"],
-                0,
-                color=c,
-                alpha=fill_alpha,
-            )
+    for i, (ax, kw) in enumerate(zip(axes, keywords)):
+        data = grid[grid["keyword"] == kw]
 
-        ax.set_title(cat, fontsize=11)
-        ax.xaxis.set_major_locator(MaxNLocator(nbins=6, integer=True))
-        ax.set_facecolor("white")
+        ax.plot(data["year"], data["percentage"], color=palette[i % 10], lw=2)
+        ax.fill_between(
+            data["year"], data["percentage"], 0,
+            color=palette[i % 10], alpha=FILL_ALPHA
+        )
 
-    for ax in axes[len(categories):]:
+        ax.set_title(kw, fontsize=11)
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+    for ax in axes[len(keywords):]:
         ax.axis("off")
 
-    if title:
-        fig.suptitle(title, fontsize=12, y=1.02)
-
-    fig.patch.set_facecolor("white")
-    fig.text(
-        0.001, 0.5,
-        "(%) Percentage of articles with keyword in abstract",
-        va="center",
-        rotation="vertical",
-        fontsize=10,
-    )
-    fig.subplots_adjust(left=0.08)
+    fig.text(0.01, 0.5, "% of articles with keyword in abstract",
+             va="center", rotation="vertical")
     fig.tight_layout()
 
-    if save_path is not None:
-        plt.savefig(save_path, dpi=300, bbox_inches="tight")
-
+    plt.savefig(save_path, dpi=300, bbox_inches="tight")
     plt.show()
 
 
-def main() -> None:
-    sheet_name = "Sociology"
+# ============================================================
+# INTERACTIVE (ALL KEYWORDS TOGETHER)
+# ============================================================
+def plot_interactive(df: pd.DataFrame, save_path: Path) -> None:
+    yearly = (
+        df.groupby(["year", "keyword"], as_index=False)
+          .agg(
+              n_articles_total=("n_articles_total", "sum"),
+              n_articles_with_keyword=("n_articles_with_keyword", "sum"),
+          )
+    )
 
+    yearly["percentage"] = np.divide(
+        100 * yearly["n_articles_with_keyword"],
+        yearly["n_articles_total"],
+        out=np.zeros(len(yearly)),
+        where=yearly["n_articles_total"] != 0,
+    )
+
+    fig = px.line(
+        yearly,
+        x="year",
+        y="percentage",
+        color="keyword",
+        markers=True,
+        title=f"Keyword prevalence over time ({'combined disciplines' if MODE == 'combined' else SINGLE_SHEET})",
+        labels={"percentage": "% of articles"},
+    )
+
+    fig.write_html(save_path)
+    fig.show()
+
+
+# ============================================================
+# MAIN
+# ============================================================
+def main() -> None:
     root = Path(__file__).resolve().parents[1]
-    in_path = root / "outputs" / f"df_all_jyk_{sheet_name}.csv"
     out_dir = root / "outputs" / "figures"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    if not in_path.exists():
-        raise FileNotFoundError(f"Missing input file: {in_path}")
+    # -------------------------
+    # Load data
+    # -------------------------
+    if MODE == "single":
+        path = root / "outputs" / f"df_all_jyk_{SINGLE_SHEET}.csv"
+        df = pd.read_csv(path)
 
-    df = pd.read_csv(in_path)
+    elif MODE == "combined":
+        frames = []
+        for sheet in SHEETS:
+            path = root / "outputs" / f"df_all_jyk_{sheet}.csv"
+            frames.append(pd.read_csv(path))
+        df = pd.concat(frames, ignore_index=True)
 
-    required = {"journal_input", "keyword", "year", "n_articles_with_keyword", "n_articles_total"}
-    missing = required - set(df.columns)
-    if missing:
-        raise ValueError(f"keyword_prevalence file missing columns: {sorted(missing)}")
+    else:
+        raise ValueError("MODE must be 'single' or 'combined'")
 
-    
-    df_all_jyk = df.copy()
+    # enforce numeric
+    df["year"] = pd.to_numeric(df["year"], errors="coerce")
+    df["n_articles_total"] = pd.to_numeric(df["n_articles_total"], errors="coerce")
+    df["n_articles_with_keyword"] = pd.to_numeric(df["n_articles_with_keyword"], errors="coerce")
 
-    df_all_jyk["year"] = pd.to_numeric(df_all_jyk["year"], errors="coerce").astype("Int64")
-    df_all_jyk["n_articles_total"] = pd.to_numeric(df_all_jyk["n_articles_total"], errors="coerce").fillna(0)
-    df_all_jyk["n_articles_with_keyword"] = pd.to_numeric(
-        df_all_jyk["n_articles_with_keyword"], errors="coerce"
-    ).fillna(0)
+    # ✅ APPLY BERT RULE HERE (affects both plots)
+    df = enforce_bert_min_year(df)
 
-    df_all_jyk["percentage"] = np.divide(
-        100.0 * df_all_jyk["n_articles_with_keyword"].astype(float),
-        df_all_jyk["n_articles_total"].astype(float),
-        out=np.zeros(len(df_all_jyk), dtype=float),
-        where=df_all_jyk["n_articles_total"].to_numpy() != 0,
-    )
+    # -------------------------
+    # Outputs
+    # -------------------------
+    suffix = "combined" if MODE == "combined" else SINGLE_SHEET
 
-    BERT_FAMILY = {"BERT", "RoBERTa", "ALBERT", "DistilBERT"}
-    order = None  # paste your custom order list here if you have one
+    static_path = out_dir / f"keywords_trends_color_{suffix}.png"
+    html_path = out_dir / f"keywords_trends_interactive_{suffix}.html"
 
-    save_path = str(out_dir / f"keywords_trends_color_{sheet_name}.png")
+    plot_small_multiples_percentage(df, static_path)
+    plot_interactive(df, html_path)
 
-    plot_small_multiples_percentage(
-        df_all_jyk=df_all_jyk,
-        year_min=2010,
-        bert_family=BERT_FAMILY,
-        bert_min_year=2018,
-        order=order,
-        title=None,
-        bw=False,
-        save_path=save_path,
-        n_cols=3,
-        fill_alpha=0.22,
-    )
-
-    print(f"Saved figure: {save_path}")
+    print(f"Saved static figure: {static_path}")
+    print(f"Saved interactive figure: {html_path}")
 
 
 if __name__ == "__main__":

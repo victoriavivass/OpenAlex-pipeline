@@ -4,10 +4,15 @@
 Extract raw publication data from the OpenAlex API for a list of journals.
 This script retrieves all works published since 2010 and stores the raw
 results for downstream processing.
+
+Usage examples:
+  python scripts/01_extract.py --sheet Sociology
+  python scripts/01_extract.py --sheet Political_Science
 """
 
 import sys
 from pathlib import Path
+import argparse
 
 import pandas as pd
 
@@ -21,12 +26,36 @@ from openalex_pipeline.utils import (
 )
 
 
+VALID_SHEETS = ["Sociology", "Political_Science"]
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Extract OpenAlex works for a journal list.")
+    parser.add_argument(
+        "--sheet",
+        default="Sociology",
+        choices=VALID_SHEETS,
+        help=f"Excel sheet name to process. Options: {', '.join(VALID_SHEETS)}",
+    )
+    parser.add_argument(
+        "--input",
+        default="data/top50_Soc_Pol.xlsx",
+        help="Path to input Excel (relative to repo root).",
+    )
+    return parser.parse_args()
+
+
 def main() -> None:
+    args = parse_args()
+
     # ------------------------------------------------------------------
     # 1. Load input journals list
     # ------------------------------------------------------------------
-    input_path = ROOT / "data" / "top50_Soc_Pol.xlsx"
-    sheet_name = "Sociology"  # change to "Political_Science" if needed
+    input_path = ROOT / args.input
+    sheet_name = args.sheet
+
+    if not input_path.exists():
+        raise FileNotFoundError(f"Input Excel not found: {input_path}")
 
     df = pd.read_excel(input_path, sheet_name=sheet_name)
 
@@ -34,7 +63,13 @@ def main() -> None:
     journal_col = "Journal Name"
     issn_col = "ISSN"
 
-    records = []
+    if journal_col not in df.columns or issn_col not in df.columns:
+        raise ValueError(
+            f"Expected columns '{journal_col}' and '{issn_col}' in the Excel sheet.\n"
+            f"Found columns: {list(df.columns)}"
+        )
+
+    records: list[dict] = []
 
     # ------------------------------------------------------------------
     # 2. Query OpenAlex and retrieve works
@@ -56,6 +91,7 @@ def main() -> None:
 
         records.append(
             {
+                "sheet": sheet_name,
                 "journal_input": journal_name,
                 "journal_openalex": display_name,
                 "matched_issn": matched_issn,
@@ -73,7 +109,9 @@ def main() -> None:
     output_dir = ROOT / "outputs"
     output_dir.mkdir(exist_ok=True)
 
-    output_path = output_dir / f"openalex_raw_works_{sheet_name}.pkl"
+    # filename-safe (Political_Science already safe, but keep for consistency)
+    safe_sheet = sheet_name.replace(" ", "")
+    output_path = output_dir / f"openalex_raw_works_{safe_sheet}.pkl"
     pd.to_pickle(records, output_path)
 
     print(f"\nRaw extraction saved to: {output_path}")
@@ -81,5 +119,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-

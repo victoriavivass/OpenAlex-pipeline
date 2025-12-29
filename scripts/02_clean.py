@@ -13,6 +13,8 @@ Transform raw OpenAlex extraction output into a clean dataset of keyword hits.
 import sys
 from pathlib import Path
 from typing import Any
+import argparse
+
 import pandas as pd
 
 # Make the /src directory importable
@@ -67,7 +69,11 @@ PATTERN_TO_LABEL = {
 
 
 def main() -> None:
-    sheet_name = "Sociology"
+    parser = argparse.ArgumentParser(description="Clean OpenAlex raw extraction and tag keyword hits.")
+    parser.add_argument("--sheet", default="Sociology", choices=["Sociology", "Political_Science"])
+    args = parser.parse_args()
+
+    sheet_name = args.sheet
     raw_path = ROOT / "outputs" / f"openalex_raw_works_{sheet_name}.pkl"
 
     if not raw_path.exists():
@@ -80,7 +86,6 @@ def main() -> None:
 
     rows: list[dict[str, Any]] = []
 
-    # Progress counters
     total_journals = len(records)
 
     for j, rec in enumerate(records, start=1):
@@ -89,16 +94,15 @@ def main() -> None:
 
         print(f"[{j}/{total_journals}] Processing {journal_input} ({len(works)} works)")
 
-        for w_i, work in enumerate(works, start=1):
+        for work in works:
+            work_id = work.get("id")
             year = work.get("publication_year")
             title = work.get("title")
             doi = work.get("doi")
 
-            # Skip incomplete entries early
             if year is None or title is None:
                 continue
 
-            # Get journal name from locations (optional)
             journal_openalex = None
             for loc in (work.get("locations") or []):
                 src = loc.get("source")
@@ -106,7 +110,6 @@ def main() -> None:
                     journal_openalex = src["display_name"]
                     break
 
-            # Authors (optional)
             authors = []
             for auth in (work.get("authorships") or []):
                 ad = (auth.get("author") or {})
@@ -115,27 +118,37 @@ def main() -> None:
                     authors.append(name)
             authors_str = "; ".join(authors)
 
-            # Rebuild abstract ONCE
             abstract_idx = work.get("abstract_inverted_index")
             abstract = decompress_abstract(abstract_idx) if abstract_idx else None
             if not abstract:
                 continue
 
-            # Check all patterns; keep only hits
+            matched_labels = set()
+            matched_patterns = []
+
             for pattern, label in PATTERN_TO_LABEL.items():
                 if keyword_in_abstract_strict(pattern, abstract):
-                    rows.append(
-                        {
-                            "journal_input": journal_input,
-                            "journal_openalex": journal_openalex,
-                            "doi": doi,
-                            "year": int(year),
-                            "title": title,
-                            "authors": authors_str,
-                            "keyword": label,  # clean label
-                            "pattern": pattern,  # keep regex for traceability
-                        }
-                    )
+                    matched_labels.add(label)
+                    matched_patterns.append(pattern)
+
+            if not matched_labels:
+                continue
+
+            for label in matched_labels:
+                rows.append(
+                    {
+                        "sheet": sheet_name,
+                        "journal_input": journal_input,
+                        "journal_openalex": journal_openalex,
+                        "work_id": work_id,
+                        "doi": doi,
+                        "year": int(year),
+                        "title": title,
+                        "authors": authors_str,
+                        "keyword": label,
+                        "patterns_matched": "; ".join(matched_patterns),
+                    }
+                )
 
     df_hits = pd.DataFrame(rows)
 
