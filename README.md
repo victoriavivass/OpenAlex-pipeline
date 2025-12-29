@@ -102,8 +102,8 @@ OpenAlex-pipeline/
 
 ### 01 — Extract
 - Reads journal lists from Excel
-- Queries the OpenAlex API for all works since 2010
-- Stores raw OpenAlex responses
+- Queries the OpenAlex API for all works published since 2010
+- Stores raw OpenAlex responses for reproducibility
 
 ### 02 — Clean
 - Reconstructs abstracts from inverted indexes
@@ -111,12 +111,12 @@ OpenAlex-pipeline/
 
 ### 03 — Analyse
 - Ensures unique article counting
-- Computes yearly totals and keyword shares
+- Computes yearly totals and keyword prevalence metrics
 
 ### 04 — Visualise
-- Static PNG and interactive HTML figures
-- Supports single and combined discipline modes
-
+- Produces static (PNG) and interactive (HTML) figures
+- Supports single-discipline and combined-discipline analyses
+  
 ---
 
 ## ▶️ Running the Pipeline
@@ -153,4 +153,5 @@ pip install -r requirements.txt
 
 Victoria Vivas  
 IPP Computational Social Sciences
+
 
