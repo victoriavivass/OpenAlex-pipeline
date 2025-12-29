@@ -63,7 +63,7 @@ Keyword detection relies on **regular expression matching**, which enables trans
 To mitigate this, potentially ambiguous terms (e.g. *AI*) are matched using **context-aware regex patterns** (e.g. requiring co-occurrence with words such as *model*).  
 This trade-off between precision and recall is a methodological limitation of this approach.
 
-## 📂 Project Structure
+## Project Structure
 
 ```text
 OpenAlex-pipeline/
@@ -98,7 +98,7 @@ OpenAlex-pipeline/
 
 ---
 
-## 🔁 Pipeline Overview
+## Pipeline Overview
 
 ### 01 — Extract
 - Reads journal lists from Excel
@@ -119,7 +119,7 @@ OpenAlex-pipeline/
   
 ---
 
-## ▶️ Running the Pipeline
+## Running the Pipeline
 
 ```bash
 python scripts/01_extract.py --sheet Sociology
@@ -141,7 +141,7 @@ python scripts/04_visualise.py
 
 ---
 
-## 📦 Dependencies
+## Dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -149,10 +149,11 @@ pip install -r requirements.txt
 
 ---
 
-## ✨ Author
+## Author
 
 Victoria Vivas  
 IPP Computational Social Sciences
+
 
 
 
