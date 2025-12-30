@@ -19,7 +19,9 @@ This project is built on top of the **pyalex** library:
 > **pyalex** — A Python interface to the OpenAlex API  
 > https://github.com/J535D165/pyalex
 
-Please cite or acknowledge **pyalex** if using or extending this pipeline.
+Please cite or acknowledge **pyalex** if using or extending this pipeline:
+
+> De Bruin, J. (2025). PyAlex (v0.19). Zenodo. https://doi.org/10.5281/zenodo.17601851
 
 ---
 
@@ -153,6 +155,7 @@ pip install -r requirements.txt
 
 Victoria Vivas  
 IPP Computational Social Sciences
+
 
 
 
